@@ -16,6 +16,7 @@ use App\Services\SettingsService;
 use App\Services\PatternGenerator;
 use App\Jobs\cleanSpecificShares;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 
 class SharesController extends Controller
@@ -149,10 +150,18 @@ class SharesController extends Controller
 
   private function tooManyPasswordAttempts(Share $share): bool
   {
-    return RateLimiter::tooManyAttempts(
-      $this->sharePasswordThrottleKey($share),
-      self::SHARE_PASSWORD_MAX_ATTEMPTS
-    );
+    try {
+      return RateLimiter::tooManyAttempts(
+        $this->sharePasswordThrottleKey($share),
+        self::SHARE_PASSWORD_MAX_ATTEMPTS
+      );
+    } catch (\Throwable $e) {
+      // A cache backend that is unavailable or misconfigured must not take share
+      // downloads down with it: fail open, log, and let the password check decide.
+      Log::warning('Share password throttle unavailable: ' . $e->getMessage());
+
+      return false;
+    }
   }
 
   /**
@@ -160,14 +169,19 @@ class SharesController extends Controller
    */
   private function checkSharePassword(Share $share, string $password): bool
   {
-    if (Hash::check($password, $share->password)) {
-      RateLimiter::clear($this->sharePasswordThrottleKey($share));
-      return true;
+    $matches = Hash::check($password, $share->password);
+
+    try {
+      if ($matches) {
+        RateLimiter::clear($this->sharePasswordThrottleKey($share));
+      } else {
+        RateLimiter::hit($this->sharePasswordThrottleKey($share), self::SHARE_PASSWORD_DECAY_SECONDS);
+      }
+    } catch (\Throwable $e) {
+      Log::warning('Share password throttle unavailable: ' . $e->getMessage());
     }
 
-    RateLimiter::hit($this->sharePasswordThrottleKey($share), self::SHARE_PASSWORD_DECAY_SECONDS);
-
-    return false;
+    return $matches;
   }
 
   private function checkShareAccess(Share $share)

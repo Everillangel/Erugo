@@ -66,20 +66,6 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Trusted Proxies
-    |--------------------------------------------------------------------------
-    |
-    | Erugo is normally served from behind a reverse proxy. Without trusting it,
-    | every request looks like it comes from the proxy address, which defeats
-    | per-client rate limiting (sign-in, share passwords) and the IP allowlist.
-    | Set TRUSTED_PROXIES to a comma separated list of proxy addresses/CIDRs, or
-    | to "*" when the proxy is the only way in, e.g. a compose network.
-    |
-    */
-
-    'trusted_proxies' => env('TRUSTED_PROXIES'),
 
     /*
     |--------------------------------------------------------------------------
