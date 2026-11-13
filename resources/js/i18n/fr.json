@@ -1009,7 +1009,8 @@
     "download": {
       "invalid_password": "Le mot de passe du partage est invalide",
       "password_required": "Vous devez saisir le mot de passe pour télécharger ce partage.",
-      "password_required_short": "Entrez le mot de passe"
+      "password_required_short": "Entrez le mot de passe",
+      "too_many_attempts": "Too many wrong passwords. Please try again in a few minutes."
     },
     "download_limit_reached": "Limite de téléchargement atteinte",
     "download_limit_reached.message": "Le partage que vous essayez de télécharger a atteint sa limite de téléchargement. Veuillez demander au créateur du partage d'augmenter la limite de téléchargement.",

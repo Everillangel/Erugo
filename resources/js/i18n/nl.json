@@ -1009,7 +1009,8 @@
     "download": {
       "invalid_password": "Wachtwoord delen is ongeldig",
       "password_required": "Je moet het wachtwoord invoeren om deze share te downloaden.",
-      "password_required_short": "Wachtwoord invoeren"
+      "password_required_short": "Wachtwoord invoeren",
+      "too_many_attempts": "Too many wrong passwords. Please try again in a few minutes."
     },
     "download_limit_reached": "Download limiet bereikt",
     "download_limit_reached.message": "De share die je probeert te downloaden heeft zijn downloadlimiet bereikt. Vraag de maker van de share om de downloadlimiet te verhogen.",

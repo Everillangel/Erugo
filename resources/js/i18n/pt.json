@@ -980,7 +980,8 @@
     "download": {
       "invalid_password": "A palavra-passe de partilha é inválida",
       "password_required": "É necessário introduzir a palavra-passe para descarregar esta partilha.",
-      "password_required_short": "Introduzir a palavra-passe"
+      "password_required_short": "Introduzir a palavra-passe",
+      "too_many_attempts": "Too many wrong passwords. Please try again in a few minutes."
     },
     "download_limit_reached": "Limite de Descarregamentos Atingido",
     "download_limit_reached.message": "A partilha que está a tentar descarregar atingiu o limite de descarregamentos. Por favor peça ao criador da partilha que aumente o limite.",

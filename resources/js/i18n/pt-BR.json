@@ -40,5 +40,10 @@
       "mobile_background_removed": "Mobile background removed",
       "mobile_background_remove_failed": "Could not remove the mobile background"
     }
+  },
+  "share": {
+    "download": {
+      "too_many_attempts": "Too many wrong passwords. Please try again in a few minutes."
+    }
   }
 }

@@ -16,6 +16,7 @@ use App\Services\SettingsService;
 use App\Services\PatternGenerator;
 use App\Jobs\cleanSpecificShares;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class SharesController extends Controller
 {
@@ -133,6 +134,42 @@ class SharesController extends Controller
     return false;
   }
 
+  /**
+   * Share password guessing is limited per share *and* client address, so an
+   * attacker cannot walk a wordlist against one link and cannot use one link to
+   * lock everybody else out.
+   */
+  private const SHARE_PASSWORD_MAX_ATTEMPTS = 10;
+  private const SHARE_PASSWORD_DECAY_SECONDS = 600;
+
+  private function sharePasswordThrottleKey(Share $share): string
+  {
+    return 'share-password:' . $share->id . ':' . request()->ip();
+  }
+
+  private function tooManyPasswordAttempts(Share $share): bool
+  {
+    return RateLimiter::tooManyAttempts(
+      $this->sharePasswordThrottleKey($share),
+      self::SHARE_PASSWORD_MAX_ATTEMPTS
+    );
+  }
+
+  /**
+   * Check a share password, counting failures so guessing is slowed down.
+   */
+  private function checkSharePassword(Share $share, string $password): bool
+  {
+    if (Hash::check($password, $share->password)) {
+      RateLimiter::clear($this->sharePasswordThrottleKey($share));
+      return true;
+    }
+
+    RateLimiter::hit($this->sharePasswordThrottleKey($share), self::SHARE_PASSWORD_DECAY_SECONDS);
+
+    return false;
+  }
+
   private function checkShareAccess(Share $share)
   {
     if (!$share->public) {
@@ -171,7 +208,10 @@ class SharesController extends Controller
       if (!$password) {
         return redirect()->to('/shares/' . $shareId . '?error=password_required');
       }
-      if (!Hash::check($password, $share->password)) {
+      if ($this->tooManyPasswordAttempts($share)) {
+        return redirect()->to('/shares/' . $shareId . '?error=too_many_attempts');
+      }
+      if (!$this->checkSharePassword($share, $password)) {
         return redirect()->to('/shares/' . $shareId . '?error=invalid_password');
       }
     }
@@ -262,7 +302,14 @@ class SharesController extends Controller
 
     if ($share->password) {
       $password = request()->input('password');
-      if (!$password || !Hash::check($password, $share->password)) {
+      if ($password && $this->tooManyPasswordAttempts($share)) {
+        if (!request()->expectsJson()) {
+          return redirect()->to('/shares/' . $shareId . '?error=too_many_attempts');
+        }
+
+        return response()->json(['error' => 'Too many attempts, try again later'], 429);
+      }
+      if (!$password || !$this->checkSharePassword($share, $password)) {
         $reason = $password ? 'invalid_password' : 'password_required';
         // Browser navigation goes back to the share page (which shows a toast); API clients keep the JSON 401
         if (!request()->expectsJson()) {

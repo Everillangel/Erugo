@@ -1009,7 +1009,8 @@
     "download": {
       "invalid_password": "La password di condivisione non è valida",
       "password_required": "Per scaricare questa condivisione è necessario inserire la password.",
-      "password_required_short": "Inserire la password"
+      "password_required_short": "Inserire la password",
+      "too_many_attempts": "Too many wrong passwords. Please try again in a few minutes."
     },
     "download_limit_reached": "Scarica il limite raggiunto",
     "download_limit_reached.message": "La condivisione che si sta cercando di scaricare ha raggiunto il limite di download. Chiedere al creatore della condivisione di aumentare il limite di download.",
