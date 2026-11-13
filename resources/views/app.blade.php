@@ -7,8 +7,8 @@
   $styleSettings = [
       'backgroundSize' => \App\Utils\UiStyleSettings::backgroundSize($settings['background_image_size'] ?? null),
       'backgroundPosition' => \App\Utils\UiStyleSettings::backgroundPosition($settings['background_image_position'] ?? null),
-      'backgroundSizeMobile' => \App\Utils\UiStyleSettings::backgroundSize($settings['background_mobile_image_size'] ?? null, '100% auto'),
-      'backgroundPositionMobile' => \App\Utils\UiStyleSettings::backgroundPosition($settings['background_mobile_image_position'] ?? null, 'center top'),
+      'mobileBackgroundSize' => \App\Utils\UiStyleSettings::backgroundSize($settings['mobile_background_size'] ?? null, '100% auto'),
+      'mobileBackgroundPosition' => \App\Utils\UiStyleSettings::backgroundPosition($settings['mobile_background_position'] ?? null, 'center top'),
       'logoAlignment' => \App\Utils\UiStyleSettings::logoAlignment($settings['logo_alignment'] ?? null),
       'logoAlignmentMobile' => \App\Utils\UiStyleSettings::logoAlignment($settings['logo_mobile_alignment'] ?? null, 'center'),
       'fontStylesheetUrl' => \App\Utils\UiStyleSettings::stylesheetUrl($settings['font_stylesheet_url'] ?? null),
@@ -19,18 +19,13 @@
       ?? \App\Utils\UiStyleSettings::fontFamily($settings['font_family_body'] ?? null)
       ?? '"Outfit", sans-serif';
 
-  // A dedicated mobile background is only emitted when the file exists, so a
-  // renamed or deleted upload falls back to the normal background instead of
-  // leaving phones blank.
-  $mobileBackground = '';
-  $mobileBackgroundFile = \App\Utils\UiStyleSettings::backgroundImage($settings['background_mobile_image'] ?? null);
-
-  if (
-      $mobileBackgroundFile !== '' &&
-      \Illuminate\Support\Facades\Storage::disk('backgrounds')->exists($mobileBackgroundFile)
-  ) {
-      $mobileBackground = $mobileBackgroundFile;
-  }
+  // Mobile background: an independently uploaded portrait image, a gradient or a
+  // flat colour, resolved to CSS values here. Existence is checked so a deleted
+  // upload falls back to the desktop background instead of leaving phones blank.
+  $mobileBackground = \App\Utils\UiStyleSettings::mobileBackground(
+      $settings,
+      fn (string $file) => \Illuminate\Support\Facades\Storage::disk('public')->exists('images/' . $file)
+  );
 @endphp
 
 <head>
@@ -49,7 +44,7 @@
 </head>
 
 
-<body data-settings='{!! htmlspecialchars(json_encode($settings)) !!}' data-version="{{ config('app.version') }}" data-error="{{ session()->get('error') }}" data-success="{{ session()->get('success') }}" data-theme-mobile-background="{{ $mobileBackground }}">
+<body data-settings='{!! htmlspecialchars(json_encode($settings)) !!}' data-version="{{ config('app.version') }}" data-error="{{ session()->get('error') }}" data-success="{{ session()->get('success') }}" data-mobile-background-active="{{ $mobileBackground['active'] ? '1' : '' }}">
   
 <style id="erugo-css-variables">
     :root {
@@ -218,8 +213,10 @@
       /* Background image scaling */
       --background-image-size: {{ $styleSettings['backgroundSize'] }};
       --background-image-position: {{ $styleSettings['backgroundPosition'] }};
-      --background-image-size-mobile: {{ $styleSettings['backgroundSizeMobile'] }};
-      --background-image-position-mobile: {{ $styleSettings['backgroundPositionMobile'] }};
+      --mobile-background-image: {{ $mobileBackground['image'] !== '' ? $mobileBackground['image'] : 'none' }};
+      --mobile-background-color: {{ $mobileBackground['color'] !== '' ? $mobileBackground['color'] : 'transparent' }};
+      --mobile-background-size: {{ $styleSettings['mobileBackgroundSize'] }};
+      --mobile-background-position: {{ $styleSettings['mobileBackgroundPosition'] }};
 
       /* Logo placement */
       --logo-alignment: {{ $styleSettings['logoAlignment'] }};

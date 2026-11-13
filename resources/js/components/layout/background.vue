@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 
 import { getBackgroundImages } from '../../api'
 import { domData } from '../../domData'
@@ -11,7 +11,7 @@ const useMyBackgrounds = ref(false)
 const backgroundFiles = ref([])
 const interval = ref(null)
 const currentBackgroundIndex = ref(0)
-const mobileBackground = ref('')
+const hasMobileBackground = ref(false)
 
 const isVideo = (filename) => {
   const extension = filename.split('.').pop().toLowerCase()
@@ -22,23 +22,10 @@ const isActive = (index) => {
   return index === currentBackgroundIndex.value
 }
 
-// A theme can name an uploaded background to use on small screens only. It is
-// removed from the rotation so it never shows up twice on desktop; if it was the
-// only upload, keep it in the rotation rather than leaving the desktop blank.
-const slideshowFiles = computed(() => {
-  if (!mobileBackground.value) {
-    return backgroundFiles.value
-  }
-
-  const withoutMobile = backgroundFiles.value.filter((file) => file !== mobileBackground.value)
-
-  return withoutMobile.length > 0 ? withoutMobile : backgroundFiles.value
-})
-
 onMounted(() => {
   slideshowSpeed.value = domData().background_slideshow_speed
   useMyBackgrounds.value = domData().use_my_backgrounds
-  mobileBackground.value = document.body.getAttribute('data-theme-mobile-background') || ''
+  hasMobileBackground.value = document.body.getAttribute('data-mobile-background-active') === '1'
 
   if (useMyBackgrounds.value) {
     //remove the interval if it exists
@@ -53,15 +40,15 @@ onMounted(() => {
 })
 
 const changeBackground = () => {
-  if (!useMyBackgrounds.value || slideshowFiles.value.length === 0) {
+  if (!useMyBackgrounds.value || backgroundFiles.value.length === 0) {
     return
   }
   //randomly select a background image
-  currentBackgroundIndex.value = Math.floor(Math.random() * slideshowFiles.value.length)
+  currentBackgroundIndex.value = Math.floor(Math.random() * backgroundFiles.value.length)
 }
 </script>
 <template>
-  <div class="backgrounds" :class="{ 'has-mobile-background': mobileBackground }" v-if="!useMyBackgrounds">
+  <div class="backgrounds" :class="{ 'has-mobile-background': hasMobileBackground }" v-if="!useMyBackgrounds">
     <div
       class="backgrounds-item active"
       :style="{
@@ -70,8 +57,8 @@ const changeBackground = () => {
     ></div>
   </div>
 
-  <div class="backgrounds" :class="{ 'has-mobile-background': mobileBackground }" v-else>
-    <template v-for="(file, index) in slideshowFiles" :key="file">
+  <div class="backgrounds" :class="{ 'has-mobile-background': hasMobileBackground }" v-else>
+    <template v-for="(file, index) in backgroundFiles" :key="file">
       <!-- Video backgrounds - only render when active -->
       <div 
         v-if="isVideo(file) && isActive(index)" 
@@ -95,11 +82,8 @@ const changeBackground = () => {
     </template>
   </div>
 
-  <!-- Theme-supplied mobile background: hidden above the 900px breakpoint -->
-  <div class="backgrounds backgrounds-mobile" v-if="mobileBackground">
-    <div
-      class="backgrounds-item active"
-      :style="{ backgroundImage: `url(/backgrounds/${mobileBackground})` }"
-    ></div>
-  </div>
+  <!-- Mobile background: an uploaded portrait image, a gradient or a flat colour.
+       The CSS values are resolved and validated server side (see
+       App\Utils\UiStyleSettings) and painted by the backgrounds-mobile rules. -->
+  <div class="backgrounds backgrounds-mobile" v-if="hasMobileBackground"></div>
 </template>

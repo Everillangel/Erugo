@@ -723,6 +723,34 @@ export const resetLogo = async () => {
 }
 
 // Save settings during first-run setup (after authentication)
+export const saveMobileBackground = async (file) => {
+  const formData = new FormData()
+  formData.append('mobile_background', file)
+
+  const response = await fetchWithAuth(`${apiUrl}/api/settings/mobile-background`, {
+    method: 'POST',
+    body: formData
+  })
+  const data = await response.json()
+  if (!response.ok) {
+    const error = new Error(data.message)
+    error.code = data.error_code || 'unknown_error'
+    throw error
+  }
+  return data
+}
+
+export const deleteMobileBackground = async () => {
+  const response = await fetchWithAuth(`${apiUrl}/api/settings/mobile-background`, {
+    method: 'DELETE'
+  })
+  const data = await response.json()
+  if (!response.ok) {
+    throw new Error(data.message)
+  }
+  return data
+}
+
 export const saveFirstRunSettings = async (settings) => {
   // Save text-based settings first
   const settingsToSave = []

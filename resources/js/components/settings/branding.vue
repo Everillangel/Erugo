@@ -16,6 +16,8 @@ import {
   getBackgroundImages,
   saveBackgroundImage,
   deleteBackgroundImage,
+  saveMobileBackground,
+  deleteMobileBackground,
   getThemes,
   setActiveTheme,
   getActiveTheme,
@@ -48,9 +50,14 @@ const settings = ref({
   background_slideshow_speed: '',
   background_image_size: 'cover',
   background_image_position: 'center center',
-  background_mobile_image_size: '100% auto',
-  background_mobile_image_position: 'center top',
-  background_mobile_image: '',
+  mobile_background_type: 'desktop',
+  mobile_background_image: '',
+  mobile_background_size: '100% auto',
+  mobile_background_position: 'center top',
+  mobile_background_color: '#0f101e',
+  mobile_background_gradient_from: '#0f101e',
+  mobile_background_gradient_to: '#00a8cc',
+  mobile_background_gradient_angle: 180,
   logo_alignment: 'left',
   logo_mobile_alignment: 'center',
   font_family_body: '',
@@ -76,12 +83,31 @@ const emit = defineEmits(['navItemClicked'])
 
 // Selectable values for the background/logo style settings. The same lists live
 // in App\Utils\UiStyleSettings, which is what the server validates against.
-const backgroundSizeOptions = ['cover', 'contain', '100% auto', 'auto 100%']
-const backgroundPositionOptions = [
-  'center center', 'center top', 'center bottom',
-  'top left', 'top right', 'bottom left', 'bottom right',
-  'left center', 'right center'
+const backgroundSizeOptions = [
+  { value: 'cover', label: 'cover — fill the screen' },
+  { value: 'contain', label: 'contain — show the whole image' },
+  { value: '100% auto', label: '100% auto — fit the width' },
+  { value: 'auto 100%', label: 'auto 100% — fit the height' }
 ]
+const backgroundPositionOptions = [
+  { value: 'center center', label: 'centre' },
+  { value: 'center top', label: 'top' },
+  { value: 'center bottom', label: 'bottom' },
+  { value: 'top left', label: 'top left' },
+  { value: 'top right', label: 'top right' },
+  { value: 'bottom left', label: 'bottom left' },
+  { value: 'bottom right', label: 'bottom right' },
+  { value: 'left center', label: 'left' },
+  { value: 'right center', label: 'right' }
+]
+const mobileBackgroundTypeOptions = [
+  { value: 'desktop', label: 'Same as desktop' },
+  { value: 'image', label: 'Own image' },
+  { value: 'gradient', label: 'Gradient' },
+  { value: 'color', label: 'Solid colour' }
+]
+
+const pendingMobileBackground = ref(null)
 const logoAlignmentOptions = [
   { label: 'Left', value: 'left' },
   { label: 'Center', value: 'center' },
@@ -351,8 +377,17 @@ const applyStyleSettingsWithoutRefresh = () => {
 
   setVar('--background-image-size', settings.value.background_image_size)
   setVar('--background-image-position', settings.value.background_image_position)
-  setVar('--background-image-size-mobile', settings.value.background_mobile_image_size)
-  setVar('--background-image-position-mobile', settings.value.background_mobile_image_position)
+
+  const mobileImage = settings.value.mobile_background_type === 'image'
+    ? `url(/images/${settings.value.mobile_background_image})`
+    : settings.value.mobile_background_type === 'gradient'
+      ? `linear-gradient(${settings.value.mobile_background_gradient_angle || 180}deg, ${settings.value.mobile_background_gradient_from}, ${settings.value.mobile_background_gradient_to})`
+      : 'none'
+
+  setVar('--mobile-background-image', mobileImage)
+  setVar('--mobile-background-color', settings.value.mobile_background_type === 'color' ? settings.value.mobile_background_color : 'transparent')
+  setVar('--mobile-background-size', settings.value.mobile_background_size)
+  setVar('--mobile-background-position', settings.value.mobile_background_position)
   setVar('--logo-alignment', logoAlignmentToFlex(settings.value.logo_alignment))
   setVar('--logo-alignment-mobile', logoAlignmentToFlex(settings.value.logo_mobile_alignment))
 
@@ -398,6 +433,34 @@ watch(newBackgroundImage, async () => {
 })
 
 // No auto-upload for favicon - it's saved with other settings in saveSettings()
+
+//mobile background upload
+watch(pendingMobileBackground, async () => {
+  if (!pendingMobileBackground.value) {
+    return
+  }
+
+  try {
+    const data = await saveMobileBackground(pendingMobileBackground.value)
+    settings.value.mobile_background_image = data.data.file
+    settings.value.mobile_background_type = 'image'
+    pendingMobileBackground.value = null
+    toast.success(t.value('settings.branding.mobile_background_uploaded'))
+  } catch (error) {
+    toast.error(error.message || t.value('settings.branding.mobile_background_upload_failed'))
+  }
+})
+
+const handleDeleteMobileBackground = async () => {
+  try {
+    await deleteMobileBackground()
+    settings.value.mobile_background_image = ''
+    settings.value.mobile_background_type = 'desktop'
+    toast.success(t.value('settings.branding.mobile_background_removed'))
+  } catch (error) {
+    toast.error(error.message || t.value('settings.branding.mobile_background_remove_failed'))
+  }
+}
 
 const handleDeleteFavicon = async () => {
   const reallyDelete = confirm(t.value('settings.branding.confirm_delete_favicon'))
@@ -728,34 +791,83 @@ defineExpose({
                   </div>
 
                   <div class="setting-group-body-item mt-4">
-                    <label for="backgroundImageSize">{{ $t('settings.branding.background_scaling') }}</label>
+                    <label>{{ $t('settings.branding.background_scaling') }}</label>
+
                     <div class="style-setting-row">
-                      <select id="backgroundImageSize" v-model="settings.background_image_size">
-                        <option v-for="size in backgroundSizeOptions" :key="size" :value="size">{{ size }}</option>
+                      <span class="style-setting-label">{{ $t('settings.branding.desktop') }}</span>
+                      <select id="backgroundImageSize" v-model="settings.background_image_size" :aria-label="$t('settings.branding.background_size')">
+                        <option v-for="size in backgroundSizeOptions" :key="size.value" :value="size.value">{{ size.label }}</option>
                       </select>
-                      <select id="backgroundImagePosition" v-model="settings.background_image_position">
-                        <option v-for="position in backgroundPositionOptions" :key="position" :value="position">{{ position }}</option>
+                      <select id="backgroundImagePosition" v-model="settings.background_image_position" :aria-label="$t('settings.branding.background_position')">
+                        <option v-for="position in backgroundPositionOptions" :key="position.value" :value="position.value">{{ position.label }}</option>
                       </select>
                     </div>
+
                     <small class="setting-hint">{{ $t('settings.branding.background_scaling_description') }}</small>
                   </div>
 
                   <div class="setting-group-body-item mt-4">
-                    <label for="backgroundMobileImage">{{ $t('settings.branding.mobile_background') }}</label>
-                    <select id="backgroundMobileImage" v-model="settings.background_mobile_image">
-                      <option value="">{{ $t('settings.branding.mobile_background_none') }}</option>
-                      <option v-for="image in backgroundImages" :key="image" :value="image">
-                        {{ niceFileName(image) }}
-                      </option>
-                    </select>
-                    <div class="style-setting-row mt-2">
-                      <select id="backgroundMobileImageSize" v-model="settings.background_mobile_image_size">
-                        <option v-for="size in backgroundSizeOptions" :key="size" :value="size">{{ size }}</option>
-                      </select>
-                      <select id="backgroundMobileImagePosition" v-model="settings.background_mobile_image_position">
-                        <option v-for="position in backgroundPositionOptions" :key="position" :value="position">{{ position }}</option>
+                    <label for="mobileBackgroundType">{{ $t('settings.branding.mobile_background') }}</label>
+
+                    <div class="style-setting-row">
+                      <span class="style-setting-label">{{ $t('settings.branding.source') }}</span>
+                      <select id="mobileBackgroundType" v-model="settings.mobile_background_type">
+                        <option v-for="option in mobileBackgroundTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                       </select>
                     </div>
+
+                    <template v-if="settings.mobile_background_type === 'image'">
+                      <FileInput
+                        v-model="pendingMobileBackground"
+                        accept="image/jpeg, image/png, image/webp"
+                        :label="settings.mobile_background_image || $t('settings.branding.upload_mobile_background')"
+                        class="mt-3 mb-3"
+                      />
+
+                      <div class="style-setting-row" v-if="settings.mobile_background_image">
+                        <span class="style-setting-label"></span>
+                        <button class="secondary" @click="handleDeleteMobileBackground">
+                          <Trash />
+                          {{ $t('settings.branding.remove') }}
+                        </button>
+                      </div>
+
+                      <div class="style-setting-row">
+                        <span class="style-setting-label">{{ $t('settings.branding.size') }}</span>
+                        <select v-model="settings.mobile_background_size" :aria-label="$t('settings.branding.size')">
+                          <option v-for="size in backgroundSizeOptions" :key="size.value" :value="size.value">{{ size.label }}</option>
+                        </select>
+                      </div>
+
+                      <div class="style-setting-row">
+                        <span class="style-setting-label">{{ $t('settings.branding.position') }}</span>
+                        <select v-model="settings.mobile_background_position" :aria-label="$t('settings.branding.position')">
+                          <option v-for="position in backgroundPositionOptions" :key="position.value" :value="position.value">{{ position.label }}</option>
+                        </select>
+                      </div>
+                    </template>
+
+                    <template v-if="settings.mobile_background_type === 'gradient'">
+                      <div class="style-setting-row">
+                        <span class="style-setting-label">{{ $t('settings.branding.gradient_from') }}</span>
+                        <input type="color" v-model="settings.mobile_background_gradient_from" :aria-label="$t('settings.branding.gradient_from')" />
+                        <span class="style-setting-label">{{ $t('settings.branding.gradient_to') }}</span>
+                        <input type="color" v-model="settings.mobile_background_gradient_to" :aria-label="$t('settings.branding.gradient_to')" />
+                      </div>
+
+                      <div class="style-setting-row">
+                        <span class="style-setting-label">{{ $t('settings.branding.gradient_angle') }}</span>
+                        <input type="number" min="0" max="360" step="15" v-model="settings.mobile_background_gradient_angle" :aria-label="$t('settings.branding.gradient_angle')" />
+                      </div>
+                    </template>
+
+                    <template v-if="settings.mobile_background_type === 'color'">
+                      <div class="style-setting-row">
+                        <span class="style-setting-label">{{ $t('settings.branding.colour') }}</span>
+                        <input type="color" v-model="settings.mobile_background_color" :aria-label="$t('settings.branding.colour')" />
+                      </div>
+                    </template>
+
                     <small class="setting-hint">{{ $t('settings.branding.mobile_background_description') }}</small>
                   </div>
                 </div>
@@ -817,18 +929,21 @@ defineExpose({
 
                 <div class="setting-group-body-item mt-4">
                   <label for="logoAlignment">{{ $t('settings.branding.logo_alignment') }}</label>
+
                   <div class="style-setting-row">
+                    <span class="style-setting-label">{{ $t('settings.branding.desktop') }}</span>
                     <select id="logoAlignment" v-model="settings.logo_alignment">
-                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
-                    </select>
-                    <select id="logoMobileAlignment" v-model="settings.logo_mobile_alignment">
-                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
+                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                     </select>
                   </div>
+
+                  <div class="style-setting-row">
+                    <span class="style-setting-label">{{ $t('settings.branding.mobile') }}</span>
+                    <select id="logoMobileAlignment" v-model="settings.logo_mobile_alignment">
+                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                  </div>
+
                   <small class="setting-hint">{{ $t('settings.branding.logo_alignment_description') }}</small>
                 </div>
 

@@ -204,6 +204,97 @@ class SettingsController extends Controller
         }
     }
 
+    public function writeMobileBackground(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'mobile_background' => 'required|file|mimes:jpg,jpeg,png,webp|max:8192',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'error_code' => 'invalid_file',
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $file = $request->file('mobile_background');
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+        $filename = 'mobile-background.' . $extension;
+
+        try {
+            // Kept in images/ on purpose: the mobile background is independent of the
+            // desktop backgrounds, so it must not appear in that gallery or slideshow.
+            foreach (Storage::disk('public')->files('images') as $existing) {
+                if (str_starts_with(basename($existing), 'mobile-background.')) {
+                    Storage::disk('public')->delete($existing);
+                }
+            }
+
+            if (!Storage::disk('public')->put('images/' . $filename, file_get_contents($file))) {
+                throw new \Exception('Failed to store mobile background');
+            }
+
+            $this->updateSetting('mobile_background_image', $filename, 'ui.background');
+            $this->updateSetting('mobile_background_type', 'image', 'ui.background');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Mobile background updated successfully',
+                'data' => ['file' => $filename],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Mobile background upload error: ' . $e->getMessage());
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to save mobile background',
+            ], 500);
+        }
+    }
+
+    public function deleteMobileBackground()
+    {
+        try {
+            foreach (Storage::disk('public')->files('images') as $existing) {
+                if (str_starts_with(basename($existing), 'mobile-background.')) {
+                    Storage::disk('public')->delete($existing);
+                }
+            }
+
+            $this->updateSetting('mobile_background_image', '', 'ui.background');
+            $this->updateSetting('mobile_background_type', 'desktop', 'ui.background');
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Mobile background removed',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Mobile background delete error: ' . $e->getMessage());
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to remove mobile background',
+            ], 500);
+        }
+    }
+
+    private function updateSetting(string $key, string $value, string $group): void
+    {
+        $setting = Setting::where('key', $key)->where('group', $group)->first();
+
+        if (!$setting) {
+            return;
+        }
+
+        $setting->previous_value = $setting->value;
+        $setting->value = $value;
+        $setting->save();
+
+        app(SettingsService::class)->clearCache();
+    }
+
     public function writeFavicon(Request $request)
     {
         $validator = Validator::make($request->all(), [

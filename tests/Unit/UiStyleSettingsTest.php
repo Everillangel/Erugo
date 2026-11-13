@@ -116,4 +116,130 @@ class UiStyleSettingsTest extends TestCase
       $this->assertSame('', UiStyleSettings::backgroundImage($candidate));
     }
   }
+
+  public function test_css_color_accepts_hex_and_function_colours()
+  {
+    $this->assertSame('#0f101e', UiStyleSettings::cssColor('#0f101e'));
+    $this->assertSame('#FFF', UiStyleSettings::cssColor('#FFF'));
+    $this->assertSame('#0f101e80', UiStyleSettings::cssColor('#0f101e80'));
+    $this->assertSame('rgb(12, 34, 56)', UiStyleSettings::cssColor('rgb(12, 34, 56)'));
+    $this->assertSame('rgba(12, 34, 56, 0.5)', UiStyleSettings::cssColor('rgba(12, 34, 56, 0.5)'));
+    $this->assertSame('hsl(210 40% 20%)', UiStyleSettings::cssColor('hsl(210 40% 20%)'));
+  }
+
+  public function test_css_color_rejects_anything_else()
+  {
+    $this->assertSame('', UiStyleSettings::cssColor('red; } body { display: none'));
+    $this->assertSame('', UiStyleSettings::cssColor('url(//evil.test/x.png)'));
+    $this->assertSame('', UiStyleSettings::cssColor('javascript:alert(1)'));
+    $this->assertSame('', UiStyleSettings::cssColor(''));
+    $this->assertSame('#000000', UiStyleSettings::cssColor(null, '#000000'));
+  }
+
+  public function test_gradient_angle_is_clamped_to_degrees()
+  {
+    $this->assertSame(180, UiStyleSettings::gradientAngle('180'));
+    $this->assertSame(0, UiStyleSettings::gradientAngle('0'));
+    $this->assertSame(360, UiStyleSettings::gradientAngle('360'));
+    $this->assertSame(180, UiStyleSettings::gradientAngle('361'));
+    $this->assertSame(180, UiStyleSettings::gradientAngle('-90'));
+    $this->assertSame(180, UiStyleSettings::gradientAngle('180; color: red'));
+    $this->assertSame(90, UiStyleSettings::gradientAngle(null, 90));
+  }
+
+  public function test_mobile_background_defaults_to_desktop()
+  {
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground([])
+    );
+
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground(['mobile_background_type' => 'desktop'])
+    );
+
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground(['mobile_background_type' => 'nonsense'])
+    );
+  }
+
+  public function test_mobile_background_image_requires_an_existing_upload()
+  {
+    $settings = [
+      'mobile_background_type' => 'image',
+      'mobile_background_image' => 'mobile-background.webp',
+    ];
+
+    $this->assertSame(
+      ['active' => true, 'image' => 'url(/images/mobile-background.webp)', 'color' => ''],
+      UiStyleSettings::mobileBackground($settings, fn ($file) => $file === 'mobile-background.webp')
+    );
+
+    // deleted upload -> falls back to the desktop background instead of a blank screen
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground($settings, fn () => false)
+    );
+  }
+
+  public function test_mobile_background_image_rejects_paths()
+  {
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground([
+        'mobile_background_type' => 'image',
+        'mobile_background_image' => '../../app.key',
+      ])
+    );
+  }
+
+  public function test_mobile_background_can_be_a_gradient()
+  {
+    $this->assertSame(
+      [
+        'active' => true,
+        'image' => 'linear-gradient(200deg, #0f101e, #00a8cc)',
+        'color' => '',
+      ],
+      UiStyleSettings::mobileBackground([
+        'mobile_background_type' => 'gradient',
+        'mobile_background_gradient_from' => '#0f101e',
+        'mobile_background_gradient_to' => '#00a8cc',
+        'mobile_background_gradient_angle' => '200',
+      ])
+    );
+  }
+
+  public function test_mobile_background_gradient_with_invalid_colour_is_inactive()
+  {
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground([
+        'mobile_background_type' => 'gradient',
+        'mobile_background_gradient_from' => '#0f101e',
+        'mobile_background_gradient_to' => 'red; } body { display: none',
+      ])
+    );
+  }
+
+  public function test_mobile_background_can_be_a_solid_colour()
+  {
+    $this->assertSame(
+      ['active' => true, 'image' => '', 'color' => '#0f101e'],
+      UiStyleSettings::mobileBackground([
+        'mobile_background_type' => 'color',
+        'mobile_background_color' => '#0f101e',
+      ])
+    );
+
+    $this->assertSame(
+      ['active' => false, 'image' => '', 'color' => ''],
+      UiStyleSettings::mobileBackground([
+        'mobile_background_type' => 'color',
+        'mobile_background_color' => 'not-a-colour',
+      ])
+    );
+  }
 }

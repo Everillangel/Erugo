@@ -103,7 +103,23 @@ class SettingsSeeder extends Seeder
                 'updated_at' => now()
             ],
             [
-                'key' => 'background_mobile_image_size',
+                'key' => 'mobile_background_type',
+                'value' => 'desktop',
+                'previous_value' => 'desktop',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'mobile_background_image',
+                'value' => '',
+                'previous_value' => '',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'mobile_background_size',
                 'value' => '100% auto',
                 'previous_value' => '100% auto',
                 'group' => 'ui.background',
@@ -111,7 +127,7 @@ class SettingsSeeder extends Seeder
                 'updated_at' => now()
             ],
             [
-                'key' => 'background_mobile_image_position',
+                'key' => 'mobile_background_position',
                 'value' => 'center top',
                 'previous_value' => 'center top',
                 'group' => 'ui.background',
@@ -119,9 +135,33 @@ class SettingsSeeder extends Seeder
                 'updated_at' => now()
             ],
             [
-                'key' => 'background_mobile_image',
-                'value' => '',
-                'previous_value' => '',
+                'key' => 'mobile_background_color',
+                'value' => '#0f101e',
+                'previous_value' => '#0f101e',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'mobile_background_gradient_from',
+                'value' => '#0f101e',
+                'previous_value' => '#0f101e',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'mobile_background_gradient_to',
+                'value' => '#00a8cc',
+                'previous_value' => '#00a8cc',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'mobile_background_gradient_angle',
+                'value' => '180',
+                'previous_value' => '180',
                 'group' => 'ui.background',
                 'created_at' => now(),
                 'updated_at' => now()

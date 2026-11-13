@@ -4,7 +4,8 @@ namespace App\Utils;
 
 /**
  * Validation helpers for the branding/style settings that are exposed as CSS
- * custom properties (background scaling, logo placement and fonts).
+ * custom properties (background scaling, mobile background, logo placement
+ * and fonts).
  *
  * These settings end up inside a <style> block in the page head, so every value
  * is checked against an explicit allowlist instead of being echoed as-is.
@@ -48,13 +49,23 @@ class UiStyleSettings
   ];
 
   /**
+   * Ways a mobile background can be drawn.
+   */
+  public const MOBILE_BACKGROUND_TYPES = [
+    'desktop',
+    'image',
+    'gradient',
+    'color',
+  ];
+
+  /**
    * Valid background-size, e.g. "cover", "contain", "100% auto".
    */
   public static function backgroundSize($value, string $fallback = 'cover'): string
   {
-    return in_array(self::normalizeInput($value), self::BACKGROUND_SIZES, true)
-      ? self::normalizeInput($value)
-      : $fallback;
+    $normalized = self::normalizeInput($value);
+
+    return in_array($normalized, self::BACKGROUND_SIZES, true) ? $normalized : $fallback;
   }
 
   /**
@@ -85,8 +96,8 @@ class UiStyleSettings
    * unquoted so they still resolve to the generic font.
    *
    * @param string|null $value
-   * @param string|null $fallback Null returns null, which lets callers emit
-   *                              "inherit this from the body font".
+   * @param string|null $fallback Null returns null, which lets callers fall
+   *                              through to another font (e.g. heading -> body).
    */
   public static function fontFamily($value, ?string $fallback = '"Outfit", sans-serif'): ?string
   {
@@ -165,8 +176,8 @@ class UiStyleSettings
   }
 
   /**
-   * A background image reference must be a bare filename of an uploaded
-   * background, never a path, because it is joined onto the /backgrounds route.
+   * A background image reference must be a bare filename of an uploaded file,
+   * never a path, because it is joined onto a fixed storage folder.
    */
   public static function backgroundImage($value): string
   {
@@ -182,6 +193,97 @@ class UiStyleSettings
     }
 
     return $value;
+  }
+
+  /**
+   * A CSS colour: #rgb, #rrggbb, #rrggbbaa, rgb(), rgba(), hsl() or hsla().
+   * Returns the fallback (empty by default) for anything else.
+   */
+  public static function cssColor($value, string $fallback = ''): string
+  {
+    $value = trim((string) $value);
+
+    if ($value === '') {
+      return $fallback;
+    }
+
+    if (preg_match('/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value)) {
+      return $value;
+    }
+
+    $functionColour = '/^(rgb|rgba|hsl|hsla)\(\s*[0-9.%,\s\/deg-]+\)$/i';
+
+    return preg_match($functionColour, $value) ? $value : $fallback;
+  }
+
+  /**
+   * A gradient angle in degrees, 0-360.
+   */
+  public static function gradientAngle($value, int $fallback = 180): int
+  {
+    $value = trim((string) $value);
+
+    if (!preg_match('/^-?[0-9]{1,3}$/', $value)) {
+      return $fallback;
+    }
+
+    $angle = (int) $value;
+
+    return ($angle >= 0 && $angle <= 360) ? $angle : $fallback;
+  }
+
+  /**
+   * Resolve the mobile background into CSS values.
+   *
+   * Returns ['active' => bool, 'image' => css background-image value,
+   * 'color' => css background-color value]. When the type is an image the file
+   * has to exist, which is checked through $fileExists so this stays testable
+   * without touching the filesystem.
+   *
+   * @param array<string, mixed> $settings
+   * @param callable(string): bool|null $fileExists
+   * @return array{active: bool, image: string, color: string}
+   */
+  public static function mobileBackground(array $settings, ?callable $fileExists = null): array
+  {
+    $type = strtolower(trim((string) ($settings['mobile_background_type'] ?? 'desktop')));
+
+    if (!in_array($type, self::MOBILE_BACKGROUND_TYPES, true) || $type === 'desktop') {
+      return ['active' => false, 'image' => '', 'color' => ''];
+    }
+
+    if ($type === 'image') {
+      $file = self::backgroundImage($settings['mobile_background_image'] ?? null);
+
+      if ($file === '' || ($fileExists !== null && !$fileExists($file))) {
+        return ['active' => false, 'image' => '', 'color' => ''];
+      }
+
+      return ['active' => true, 'image' => 'url(/images/' . $file . ')', 'color' => ''];
+    }
+
+    if ($type === 'gradient') {
+      $from = self::cssColor($settings['mobile_background_gradient_from'] ?? null);
+      $to = self::cssColor($settings['mobile_background_gradient_to'] ?? null);
+
+      if ($from === '' || $to === '') {
+        return ['active' => false, 'image' => '', 'color' => ''];
+      }
+
+      $angle = self::gradientAngle($settings['mobile_background_gradient_angle'] ?? null);
+
+      return [
+        'active' => true,
+        'image' => sprintf('linear-gradient(%ddeg, %s, %s)', $angle, $from, $to),
+        'color' => '',
+      ];
+    }
+
+    $color = self::cssColor($settings['mobile_background_color'] ?? null);
+
+    return $color === ''
+      ? ['active' => false, 'image' => '', 'color' => '']
+      : ['active' => true, 'image' => '', 'color' => $color];
   }
 
   private static function normalizeInput($value): string

@@ -208,10 +208,16 @@ h6 {
   justify-content: var(--logo-alignment, flex-start);
   align-items: flex-start;
   width: 100%;
+  // Gutter so a left or right aligned logo never sits against the screen edge.
+  // From 900px up #app already carries its own 20px padding.
+  padding: 10px 20px 0;
+
+  @media (min-width: 900px) {
+    padding: 0;
+  }
 
   @media (max-width: 900px) {
     justify-content: var(--logo-alignment-mobile, center);
-    padding-top: 10px;
   }
 
   #logo {
@@ -240,6 +246,11 @@ h6 {
 
   &.backgrounds-mobile {
     display: none;
+    background-image: var(--mobile-background-image, none);
+    background-color: var(--mobile-background-color, transparent);
+    background-size: var(--mobile-background-size, cover);
+    background-position: var(--mobile-background-position, center center);
+    background-repeat: no-repeat;
 
     @media (max-width: 900px) {
       display: block;
@@ -258,12 +269,6 @@ h6 {
     opacity: 0;
     transition: opacity 0.5s ease-in-out;
 
-    // Mobile viewports crop cover-scaled backgrounds very aggressively, so themes
-    // can supply their own scaling for small screens.
-    @media (max-width: 900px) {
-      background-size: var(--background-image-size-mobile, var(--background-image-size, cover));
-      background-position: var(--background-image-position-mobile, var(--background-image-position, center center));
-    }
     .backgrounds-item-credit {
       position: fixed;
       top: 20px;
@@ -556,10 +561,28 @@ h6 {
     display: flex;
     gap: 10px;
     align-items: center;
+    margin-bottom: 6px;
 
-    select {
+    .style-setting-label {
+      flex: 0 0 70px;
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: normal;
+      color: color-mix(in srgb, var(--panel-section-text-color) 75%, transparent 25%);
+    }
+
+    select,
+    input[type="text"],
+    input[type="number"] {
       flex: 1 1 0;
       min-width: 0;
+    }
+
+    input[type="color"] {
+      flex: 0 0 48px;
+      height: var(--button-height);
+      padding: 2px;
+      cursor: pointer;
     }
   }
 
