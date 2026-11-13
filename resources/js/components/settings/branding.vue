@@ -326,32 +326,23 @@ const saveSettings = async () => {
 }
 
 const applySettingsWithoutRefresh = () => {
-  //find the style tag #erugo-css-variables
-  const styleTag = document.getElementById('erugo-css-variables')
-  if (styleTag) {
-    //update the css variables
-    styleTag.innerHTML = `
-      :root {
-        --primary-color: ${settings.value.css_primary_color};
-        --secondary-color: ${settings.value.css_secondary_color};
-        --accent-color: ${settings.value.css_accent_color};
-        --accent-color-light: ${settings.value.css_accent_color_light};
-      }
-      `
-  } else {
-    //add the style tag
-    const styleTag = document.createElement('style')
-    styleTag.id = 'erugo-css-variables'
-    styleTag.innerHTML = `
-      :root {
-        --primary-color: ${settings.value.css_primary_color};
-        --secondary-color: ${settings.value.css_secondary_color};
-        --accent-color: ${settings.value.css_accent_color};
-        --accent-color-light: ${settings.value.css_accent_color_light};
-      }
-      `
-    document.head.appendChild(styleTag)
+  // Set the individual properties instead of rewriting the #erugo-css-variables
+  // style tag: replacing its contents dropped every theme variable that the
+  // server rendered into it (buttons, panels, tables, ...) until a page reload.
+  const root = document.documentElement
+
+  const setVar = (name, value) => {
+    if (value === undefined || value === null || value === '') {
+      return
+    }
+
+    root.style.setProperty(name, value)
   }
+
+  setVar('--primary-color', settings.value.css_primary_color)
+  setVar('--secondary-color', settings.value.css_secondary_color)
+  setVar('--accent-color', settings.value.css_accent_color)
+  setVar('--accent-color-light', settings.value.css_accent_color_light)
 
   //update the logo width
   const logo = document.getElementById('logo')
