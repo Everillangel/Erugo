@@ -15,6 +15,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: [
             'refresh_token',
         ]);
+
+        // Opt in to proxy headers so rate limits and the IP allowlist see the
+        // real client address. Left unset, behaviour is unchanged.
+        $trustedProxies = config('app.trusted_proxies');
+
+        if ($trustedProxies === '*') {
+            $middleware->trustProxies(at: '*');
+        } elseif (is_string($trustedProxies) && trim($trustedProxies) !== '') {
+            $middleware->trustProxies(at: array_map('trim', explode(',', $trustedProxies)));
+        }
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

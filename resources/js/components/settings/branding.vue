@@ -808,6 +808,13 @@ defineExpose({
                     </div>
 
                     <template v-if="settings.mobile_background_type === 'image'">
+                      <img
+                        v-if="settings.mobile_background_image"
+                        :src="`/images/${settings.mobile_background_image}`"
+                        class="mobile-background-preview"
+                        :alt="$t('settings.branding.mobile_background')"
+                      />
+
                       <FileInput
                         v-model="pendingMobileBackground"
                         accept="image/jpeg, image/png, image/webp"
