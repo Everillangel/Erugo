@@ -87,6 +87,86 @@ class SettingsSeeder extends Seeder
                 'updated_at' => now()
             ],
             [
+                'key' => 'background_image_size',
+                'value' => 'cover',
+                'previous_value' => 'cover',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'background_image_position',
+                'value' => 'center center',
+                'previous_value' => 'center center',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'background_mobile_image_size',
+                'value' => '100% auto',
+                'previous_value' => '100% auto',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'background_mobile_image_position',
+                'value' => 'center top',
+                'previous_value' => 'center top',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'background_mobile_image',
+                'value' => '',
+                'previous_value' => '',
+                'group' => 'ui.background',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'logo_alignment',
+                'value' => 'left',
+                'previous_value' => 'left',
+                'group' => 'ui.logo',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'logo_mobile_alignment',
+                'value' => 'center',
+                'previous_value' => 'center',
+                'group' => 'ui.logo',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'font_family_body',
+                'value' => '',
+                'previous_value' => '',
+                'group' => 'ui.fonts',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'font_family_heading',
+                'value' => '',
+                'previous_value' => '',
+                'group' => 'ui.fonts',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'key' => 'font_stylesheet_url',
+                'value' => '',
+                'previous_value' => '',
+                'group' => 'ui.fonts',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
                 'key' => 'show_powered_by',
                 'value' => 'true',
                 'previous_value' => 'true',

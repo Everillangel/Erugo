@@ -1,5 +1,37 @@
 <!doctype html>
 <html lang="en">
+@php
+  // Branding style settings, validated once and reused for the <head> and the
+  // :root block below. Values are allowlisted in App\Utils\UiStyleSettings
+  // because they are emitted inside a <style> tag.
+  $styleSettings = [
+      'backgroundSize' => \App\Utils\UiStyleSettings::backgroundSize($settings['background_image_size'] ?? null),
+      'backgroundPosition' => \App\Utils\UiStyleSettings::backgroundPosition($settings['background_image_position'] ?? null),
+      'backgroundSizeMobile' => \App\Utils\UiStyleSettings::backgroundSize($settings['background_mobile_image_size'] ?? null, '100% auto'),
+      'backgroundPositionMobile' => \App\Utils\UiStyleSettings::backgroundPosition($settings['background_mobile_image_position'] ?? null, 'center top'),
+      'logoAlignment' => \App\Utils\UiStyleSettings::logoAlignment($settings['logo_alignment'] ?? null),
+      'logoAlignmentMobile' => \App\Utils\UiStyleSettings::logoAlignment($settings['logo_mobile_alignment'] ?? null, 'center'),
+      'fontStylesheetUrl' => \App\Utils\UiStyleSettings::stylesheetUrl($settings['font_stylesheet_url'] ?? null),
+  ];
+
+  $bodyFont = \App\Utils\UiStyleSettings::fontFamily($settings['font_family_body'] ?? null) ?? '"Outfit", sans-serif';
+  $headingFont = \App\Utils\UiStyleSettings::fontFamily($settings['font_family_heading'] ?? null, null)
+      ?? \App\Utils\UiStyleSettings::fontFamily($settings['font_family_body'] ?? null)
+      ?? '"Outfit", sans-serif';
+
+  // A dedicated mobile background is only emitted when the file exists, so a
+  // renamed or deleted upload falls back to the normal background instead of
+  // leaving phones blank.
+  $mobileBackground = '';
+  $mobileBackgroundFile = \App\Utils\UiStyleSettings::backgroundImage($settings['background_mobile_image'] ?? null);
+
+  if (
+      $mobileBackgroundFile !== '' &&
+      \Illuminate\Support\Facades\Storage::disk('backgrounds')->exists($mobileBackgroundFile)
+  ) {
+      $mobileBackground = $mobileBackgroundFile;
+  }
+@endphp
 
 <head>
   <meta charset="UTF-8" />
@@ -9,12 +41,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.0.2/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <title>{{ $settings['application_name'] }}</title>
+  @if($styleSettings['fontStylesheetUrl'] !== '')
+  <link id="erugo-font-stylesheet" rel="stylesheet" href="{{ $styleSettings['fontStylesheetUrl'] }}">
+  @endif
   @vite('resources/js/app.js')
  
 </head>
 
 
-<body data-settings='{!! htmlspecialchars(json_encode($settings)) !!}' data-version="{{ config('app.version') }}" data-error="{{ session()->get('error') }}" data-success="{{ session()->get('success') }}">
+<body data-settings='{!! htmlspecialchars(json_encode($settings)) !!}' data-version="{{ config('app.version') }}" data-error="{{ session()->get('error') }}" data-success="{{ session()->get('success') }}" data-theme-mobile-background="{{ $mobileBackground }}">
   
 <style id="erugo-css-variables">
     :root {
@@ -179,6 +214,23 @@
         --settings-height: {{ $theme->theme->dimensions->settings->height ?? '100vh' }};
         @endif
       @endif
+
+      /* Background image scaling */
+      --background-image-size: {{ $styleSettings['backgroundSize'] }};
+      --background-image-position: {{ $styleSettings['backgroundPosition'] }};
+      --background-image-size-mobile: {{ $styleSettings['backgroundSizeMobile'] }};
+      --background-image-position-mobile: {{ $styleSettings['backgroundPositionMobile'] }};
+
+      /* Logo placement */
+      --logo-alignment: {{ $styleSettings['logoAlignment'] }};
+      --logo-alignment-mobile: {{ $styleSettings['logoAlignmentMobile'] }};
+
+      {{-- Fonts. Raw output: families are re-quoted server side ("Source Sans 3"),
+           and htmlspecialchars() would turn those quotes into &quot;. The value is
+           limited to letters, digits, spaces, hyphens, commas and quotes, so it
+           cannot close this style block or start a new declaration. --}}
+      --font-family-body: {!! $bodyFont !!};
+      --font-family-heading: {!! $headingFont !!};
     }
   </style>
   <div id="app"></div>

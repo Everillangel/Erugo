@@ -45,7 +45,17 @@ const settings = ref({
   use_my_backgrounds: false,
   show_powered_by: true,
   application_name: '',
-  background_slideshow_speed: ''
+  background_slideshow_speed: '',
+  background_image_size: 'cover',
+  background_image_position: 'center center',
+  background_mobile_image_size: '100% auto',
+  background_mobile_image_position: 'center top',
+  background_mobile_image: '',
+  logo_alignment: 'left',
+  logo_mobile_alignment: 'center',
+  font_family_body: '',
+  font_family_heading: '',
+  font_stylesheet_url: ''
 })
 
 const faviconStatus = ref({
@@ -63,6 +73,50 @@ const logoTimestamp = ref(Date.now())
 const faviconTimestamp = ref(Date.now())
 
 const emit = defineEmits(['navItemClicked'])
+
+// Selectable values for the background/logo style settings. The same lists live
+// in App\Utils\UiStyleSettings, which is what the server validates against.
+const backgroundSizeOptions = ['cover', 'contain', '100% auto', 'auto 100%']
+const backgroundPositionOptions = [
+  'center center', 'center top', 'center bottom',
+  'top left', 'top right', 'bottom left', 'bottom right',
+  'left center', 'right center'
+]
+const logoAlignmentOptions = [
+  { label: 'Left', value: 'left' },
+  { label: 'Center', value: 'center' },
+  { label: 'Right', value: 'right' }
+]
+
+const genericFontFamilies = [
+  'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
+  'ui-serif', 'ui-sans-serif', 'ui-monospace', 'emoji', 'math', 'fangsong'
+]
+
+// Mirror of the server-side normalisation so the preview matches the saved page:
+// named families are quoted ("Source Sans 3" ends in a digit and is invalid CSS
+// unquoted) while generic families stay unquoted so they still resolve.
+const quoteFontStack = (value, fallback) => {
+  const cleaned = (value || '').trim()
+
+  if (!cleaned) {
+    return fallback
+  }
+
+  const families = cleaned
+    .split(',')
+    .map((family) => family.trim().replace(/^["']|["']$/g, ''))
+    .filter((family) => family !== '')
+    .map((family) => genericFontFamilies.includes(family.toLowerCase()) ? family.toLowerCase() : '"' + family + '"')
+
+  return families.length > 0 ? families.join(', ') : fallback
+}
+
+const logoAlignmentToFlex = (alignment) => ({
+  left: 'flex-start',
+  center: 'center',
+  right: 'flex-end'
+}[alignment] || 'flex-start')
 
 onMounted(async () => {
   await loadSettings()
@@ -229,6 +283,7 @@ const saveSettings = async () => {
     await setActiveTheme(activeTheme.value.name)
 
     applySettingsWithoutRefresh()
+    applyStyleSettingsWithoutRefresh()
     loadThemes()
 
     saving.value = false
@@ -276,6 +331,54 @@ const applySettingsWithoutRefresh = () => {
   const logo = document.getElementById('logo')
   if (logo) {
     logo.style.width = `${settings.value.logo_width}`
+  }
+}
+
+// Live preview for the background/logo/font settings. Sets individual custom
+// properties instead of rewriting #erugo-css-variables, so the theme variables
+// are left untouched.
+const applyStyleSettingsWithoutRefresh = () => {
+  const root = document.documentElement
+
+  const setVar = (name, value) => {
+    if (value === undefined || value === null || value === '') {
+      root.style.removeProperty(name)
+      return
+    }
+
+    root.style.setProperty(name, value)
+  }
+
+  setVar('--background-image-size', settings.value.background_image_size)
+  setVar('--background-image-position', settings.value.background_image_position)
+  setVar('--background-image-size-mobile', settings.value.background_mobile_image_size)
+  setVar('--background-image-position-mobile', settings.value.background_mobile_image_position)
+  setVar('--logo-alignment', logoAlignmentToFlex(settings.value.logo_alignment))
+  setVar('--logo-alignment-mobile', logoAlignmentToFlex(settings.value.logo_mobile_alignment))
+
+  const bodyFont = quoteFontStack(settings.value.font_family_body, '"Outfit", sans-serif')
+  const headingFont = quoteFontStack(
+    settings.value.font_family_heading,
+    quoteFontStack(settings.value.font_family_body, '"Outfit", sans-serif')
+  )
+
+  setVar('--font-family-body', bodyFont)
+  setVar('--font-family-heading', headingFont)
+  document.body.style.fontFamily = bodyFont
+
+  const fontLink = document.getElementById('erugo-font-stylesheet')
+  const fontUrl = (settings.value.font_stylesheet_url || '').trim()
+
+  if (fontUrl && fontLink) {
+    fontLink.setAttribute('href', fontUrl)
+  } else if (fontUrl) {
+    const link = document.createElement('link')
+    link.id = 'erugo-font-stylesheet'
+    link.rel = 'stylesheet'
+    link.href = fontUrl
+    document.head.appendChild(link)
+  } else if (fontLink) {
+    fontLink.remove()
   }
 }
 
@@ -551,6 +654,12 @@ defineExpose({
           </li>
 
           <li>
+            <a href="#" @click.prevent="handleNavItemClicked('font-settings')">
+              <Tag />
+              {{ $t('settings.branding.fonts') }}
+            </a>
+          </li>
+          <li>
             <a href="#" @click.prevent="handleNavItemClicked('ui-colours')">
               <Pipette />
               {{ $t('settings.branding.theme') }}
@@ -617,6 +726,38 @@ defineExpose({
                       </buttonWithMenu>
                     </div>
                   </div>
+
+                  <div class="setting-group-body-item mt-4">
+                    <label for="backgroundImageSize">{{ $t('settings.branding.background_scaling') }}</label>
+                    <div class="style-setting-row">
+                      <select id="backgroundImageSize" v-model="settings.background_image_size">
+                        <option v-for="size in backgroundSizeOptions" :key="size" :value="size">{{ size }}</option>
+                      </select>
+                      <select id="backgroundImagePosition" v-model="settings.background_image_position">
+                        <option v-for="position in backgroundPositionOptions" :key="position" :value="position">{{ position }}</option>
+                      </select>
+                    </div>
+                    <small class="setting-hint">{{ $t('settings.branding.background_scaling_description') }}</small>
+                  </div>
+
+                  <div class="setting-group-body-item mt-4">
+                    <label for="backgroundMobileImage">{{ $t('settings.branding.mobile_background') }}</label>
+                    <select id="backgroundMobileImage" v-model="settings.background_mobile_image">
+                      <option value="">{{ $t('settings.branding.mobile_background_none') }}</option>
+                      <option v-for="image in backgroundImages" :key="image" :value="image">
+                        {{ niceFileName(image) }}
+                      </option>
+                    </select>
+                    <div class="style-setting-row mt-2">
+                      <select id="backgroundMobileImageSize" v-model="settings.background_mobile_image_size">
+                        <option v-for="size in backgroundSizeOptions" :key="size" :value="size">{{ size }}</option>
+                      </select>
+                      <select id="backgroundMobileImagePosition" v-model="settings.background_mobile_image_position">
+                        <option v-for="position in backgroundPositionOptions" :key="position" :value="position">{{ position }}</option>
+                      </select>
+                    </div>
+                    <small class="setting-hint">{{ $t('settings.branding.mobile_background_description') }}</small>
+                  </div>
                 </div>
               </div>
             </div>
@@ -675,6 +816,23 @@ defineExpose({
                 </div>
 
                 <div class="setting-group-body-item mt-4">
+                  <label for="logoAlignment">{{ $t('settings.branding.logo_alignment') }}</label>
+                  <div class="style-setting-row">
+                    <select id="logoAlignment" v-model="settings.logo_alignment">
+                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                    <select id="logoMobileAlignment" v-model="settings.logo_mobile_alignment">
+                      <option v-for="option in logoAlignmentOptions" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <small class="setting-hint">{{ $t('settings.branding.logo_alignment_description') }}</small>
+                </div>
+
+                <div class="setting-group-body-item mt-4">
                   <label for="faviconFile">{{ $t('settings.branding.favicon') }}</label>
                   <FileInput 
                     v-model="pendingFavicon" 
@@ -706,6 +864,61 @@ defineExpose({
               <p>
                 {{ $t('settings.branding.favicon_description') }}
               </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mb-5">
+          <!-- fonts -->
+          <div class="col-12 col-md-6 pe-0 ps-0 ps-md-3">
+            <div class="setting-group" id="font-settings">
+              <div class="setting-group-header">
+                <h3>
+                  <Tag />
+                  {{ $t('settings.branding.fonts') }}
+                </h3>
+              </div>
+
+              <div class="setting-group-body">
+                <div class="setting-group-body-item">
+                  <label for="fontFamilyBody">{{ $t('settings.branding.font_family_body') }}</label>
+                  <input
+                    type="text"
+                    id="fontFamilyBody"
+                    v-model="settings.font_family_body"
+                    placeholder="Source Sans 3, sans-serif"
+                  />
+                </div>
+
+                <div class="setting-group-body-item mt-4">
+                  <label for="fontFamilyHeading">{{ $t('settings.branding.font_family_heading') }}</label>
+                  <input
+                    type="text"
+                    id="fontFamilyHeading"
+                    v-model="settings.font_family_heading"
+                    placeholder="Source Sans 3, sans-serif"
+                  />
+                </div>
+
+                <div class="setting-group-body-item mt-4">
+                  <label for="fontStylesheetUrl">{{ $t('settings.branding.font_stylesheet_url') }}</label>
+                  <input
+                    type="text"
+                    id="fontStylesheetUrl"
+                    v-model="settings.font_stylesheet_url"
+                    placeholder="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@200..900&display=swap"
+                  />
+                  <small class="setting-hint">{{ $t('settings.branding.font_stylesheet_url_description') }}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="d-none d-md-block col ps-0">
+            <div class="section-help">
+              <h6>{{ $t('settings.branding.fonts') }}</h6>
+              <p>{{ $t('settings.branding.fonts_description') }}</p>
+              <h6>{{ $t('settings.branding.font_stylesheet_url') }}</h6>
+              <p>{{ $t('settings.branding.font_stylesheet_url_description') }}</p>
             </div>
           </div>
         </div>
