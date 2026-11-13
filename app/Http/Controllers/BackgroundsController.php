@@ -94,8 +94,18 @@ class BackgroundsController extends Controller
                 ], 422);
             }
 
-            $fileName = $file->getClientOriginalName();
-            $safeFilename = FileHelper::sanitizeFilename($fileName);
+            // The extension comes from the sniffed media type, not from the client
+            // filename, so a media file can never be stored as e.g. ".php" in a
+            // directory that is served (and executed) by the web server.
+            $safeFilename = FileHelper::forceMediaExtension($file->getClientOriginalName(), $realMime);
+
+            if ($safeFilename === null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Background file upload failed: unsupported file type',
+                ], 422);
+            }
+
             $file->storeAs('', $safeFilename, 'backgrounds');
 
             return response()->json([
